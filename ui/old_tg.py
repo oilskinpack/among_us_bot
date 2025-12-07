@@ -5,6 +5,7 @@ import sys
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup,Update,KeyboardButton, ReplyKeyboardMarkup
 from telegram.error import BadRequest
 import asyncio
+from src.model.messages import BotMessages
 
 
 LOG_SEPARATOR = "\t|\t"
@@ -25,15 +26,23 @@ logging.basicConfig(
     )
 
 logger = logging.getLogger(__name__)
+bot_messages = BotMessages()
+users = []
 
 # Обработчики команд
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка команды /start"""
 
-    user_id = update.effective_user.id
+    # user_id = update.effective_user.id
 
-    welcome_text = ("Приветственный текст🧐")
-    await update.message.reply_text(welcome_text)
+    #Выводим стартовое сообщение
+    welcome_text = bot_messages.greet_messages['greet']
+    #Добавляем кнопку - узнать есть ли места
+    logger.info('получили start')
+    reply_markup = bot_messages.show_players_count_inline()
+    logger.info('получили инлайны')
+    await update.message.reply_text(welcome_text,reply_markup=reply_markup,parse_mode="Markdown")
+    logger.info('ответили')
 
 
 def log_activity(update: Update, message_type: str, text: str,sender: str,specific_message_id: int = None):
@@ -116,6 +125,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pass
 
 
+async def show_players_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает нажатие кнопки - узнать есть ли места"""
+    query = update.callback_query
+    
+    #Отвечаем на запрос
+    # await query.answer("✅Отзыв учтен: ")
+
+
+    try:
+        
+        users_count = len(users)
+        if users_count >= 5:
+            text = bot_messages.inline_messages['too_many_players']
+        else:
+            text = bot_messages.inline_messages['can play']
+
+        
+        # Редактируем сообщение, убирая кнопки (reply_markup=None)
+        await query.edit_message_text(text=text, reply_markup=None)
+    except BadRequest as e:
+        # Эта ошибка может возникнуть, если пользователь нажмет кнопку дважды очень быстро.
+        # Просто логируем ее и игнорируем.
+        if "Message is not modified" in str(e):
+            # logger.warning("Пользователь нажал на кнопку оценки повторно.")
+            pass
+        else:
+            # logger.error(f"Ошибка при редактировании сообщения: {e}")
+            # log_activity(update=update,message_type='exception',sender='bot',text=e)
+            pass
+
+
 # Главная функция
 def main():
     
@@ -126,6 +166,9 @@ def main():
     # Регистрируем обработчики
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Регистрация кнопки - узнать есть ли места
+    application.add_handler(CallbackQueryHandler(show_players_count, pattern=r"^players_count"))
     
     # Запускаем бота
     application.run_polling(allowed_updates=Update.ALL_TYPES)
