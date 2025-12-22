@@ -25,7 +25,11 @@ class GameSession:
     
     imposter_id: Optional[int] = None
     imposter_score: int = 0
+    imposter_score_to_win: int = 3
     imposter_task_skips_left: int = 1
+
+    # Поле для истории заданий
+    imposter_tasks_history: List[str] = field(default_factory=list)
     
     votes_total: int = 0
     votes_used: int = 0
@@ -48,6 +52,7 @@ class GameSession:
     def start_game(self):
         self.status = "in_progress"
         self.votes_total = len(self.players) - 1
+        self.imposter_score_to_win = self.votes_total
         
         imposter_player = random.choice(self.players)
         imposter_player.role = "imposter"
@@ -59,6 +64,8 @@ class GameSession:
             return None
         
         self.current_imposter_task = self.available_tasks.pop(0)
+        #Добавляем задание в историю
+        self.imposter_tasks_history.append(self.current_imposter_task)
         return self.current_imposter_task
 
     def complete_task(self):

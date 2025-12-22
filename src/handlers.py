@@ -207,15 +207,21 @@ async def imposter_actions_callback(query: CallbackQuery, bot: Bot):
 
     if query.data == "task_done":
         game.complete_task()
-        await query.message.edit_text(f"✅ Задание принято. Ваш счет: {game.imposter_score}/3")
+        await query.message.edit_text(f"✅ Задание принято. Ваш счет: {game.imposter_score}/{game.imposter_score_to_win}")
 
-        if game.imposter_score >= 3:
+        if game.imposter_score >= game.imposter_score_to_win:
             imposter = game.get_player(game.imposter_id)
-            await bot.send_message(game.chat_id, f"🏆 **Победа Импостера!**\nОн набрал 3 очка. Коварным импостером был {escape_markdown(imposter.full_name)}!")
+            # ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ
+            tasks_summary = format_task_history(game)
+            await bot.send_message(
+                game.chat_id,
+                f"🏆 **Победа Импостера!**\nОн набрал {game.imposter_score_to_win} очка. "
+                f"Коварным импостером был {escape_markdown(imposter.full_name)}!{tasks_summary}"
+            )
             state.end_game(game.chat_id)
             return
 
-        await bot.send_message(game.chat_id, f"✅ Задание выполнено! Счет импостера: {game.imposter_score}/3. Будьте начеку!")
+        await bot.send_message(game.chat_id, f"✅ Задание выполнено! Счет импостера: {game.imposter_score}/{game.imposter_score_to_win}. Будьте начеку!")
         
         new_task = game.assign_imposter_task()
         if new_task:
@@ -313,10 +319,11 @@ async def process_vote_results(game: GameSession, bot: Bot):
         accused_id = most_voted_ids[0]
         accused_player = game.get_player(accused_id)
         if accused_id == game.imposter_id:
+            tasks_summary = format_task_history(game)
             await bot.send_message(
                 game.chat_id,
                 f"✅ Вы были правы! {escape_markdown(accused_player.full_name)} действительно был импостером!\n\n"
-                f"🏆 **Победа Экипажа!** Поздравляем!"
+                f"🏆 **Победа Экипажа!** Поздравляем!{tasks_summary}"
             )
             state.end_game(game.chat_id)
             return
@@ -326,10 +333,26 @@ async def process_vote_results(game: GameSession, bot: Bot):
                 f"❌ Ошибка! {escape_markdown(accused_player.full_name)} не был импостером. **Это было неудачное голосование.**"
             )
             game.failed_vote()
-    await bot.send_message(game.chat_id, f"Счет импостера теперь: {game.imposter_score}/3.")
-    if game.imposter_score >= 3:
+    await bot.send_message(game.chat_id, f"Счет импостера теперь: {game.imposter_score}/{game.imposter_score_to_win}.")
+    if game.imposter_score >= game.imposter_score_to_win:
         imposter = game.get_player(game.imposter_id)
-        await bot.send_message(game.chat_id, f"🏆 **Победа Импостера!**\nОн набрал 3 очка. Коварным импостером был {escape_markdown(imposter.full_name)}!")
+        tasks_summary = format_task_history(game)
+        await bot.send_message(
+            game.chat_id,
+            f"🏆 **Победа Импостера!**\nОн набрал {game.imposter_score_to_win} очка. "
+            f"Коварным импостером был {escape_markdown(imposter.full_name)}!{tasks_summary}"
+        )
         state.end_game(game.chat_id)
     else:
         game.reset_vote_state()
+
+def format_task_history(game: GameSession) -> str:
+    """Форматирует историю заданий импостера для вывода в чат."""
+    if not game.imposter_tasks_history:
+        return ""
+    
+    tasks_text = "\n\nЗадания, которые были у импостера:\n"
+    # Экранируем каждый таск на случай спецсимволов
+    tasks_list = [f"- {escape_markdown(task)}" for task in game.imposter_tasks_history]
+    tasks_text += "\n".join(tasks_list)
+    return tasks_text
