@@ -535,7 +535,7 @@ async def vote_command_handler(message: Message, bot: Bot):
     await message.answer(
         f"📢 {escape_markdown(message.from_user.full_name)} созывает экстренное совещание!\n"
         f"Использована попытка голосования {game.votes_used} из {game.votes_total}.\n"
-        "**У вас есть 60 секунд, чтобы проголосовать в личном чате с ботом!**"
+        "**У вас есть 5 минут, чтобы проголосовать в личном чате с ботом!**"
     )
 
     game.vote_timer_task = asyncio.create_task(_vote_timer(game, bot))
@@ -592,7 +592,7 @@ async def process_vote_callback(query: CallbackQuery, bot: Bot):
 
 async def _vote_timer(game: GameSession, bot: Bot):
     """
-    Таймер, который ждет 60 секунд и принудительно завершает голосование.
+    Таймер, который ждет и принудительно завершает голосование.
     """
     try:
         await asyncio.sleep(300)
