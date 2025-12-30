@@ -24,11 +24,16 @@ def create_imposter_task_keyboard(can_skip: bool) -> InlineKeyboardMarkup:
 
 def create_vote_keyboard(game: GameSession, voter_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    for player in game.players:
+    
+    # ИЗМЕНЕНИЕ: Получаем список только тех игроков, кто еще в игре
+    active_players = [p for p in game.players if p.user_id not in game.voted_out_player_ids]
+    
+    for player in active_players:
         if player.user_id != voter_id: # Нельзя голосовать за себя
             builder.add(InlineKeyboardButton(
                 text=player.full_name,
                 callback_data=f"vote_{player.user_id}"
             ))
-    builder.adjust(2) # Расположить кнопки по 2 в ряд
+    builder.adjust(2)
     return builder.as_markup()
+
